@@ -1,14 +1,25 @@
 package gitrepos
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/ttd2089/ocg/pkg/shellout"
 )
+
+// IsRepo returns a bool indicating whether the given path points to a git repository.
+func IsRepo(path string) (bool, error) {
+	info, err := os.Stat(filepath.Join(path, ".git"))
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return info.IsDir(), nil
+}
 
 // A Repo represents a Git repository on the local file system.
 type Repo interface {
@@ -41,17 +52,6 @@ func NewRepo(path string) (Repo, error) {
 	}, nil
 }
 
-func IsRepo(path string) (bool, error) {
-	info, err := os.Stat(filepath.Join(path, ".git"))
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return info.IsDir(), nil
-}
-
 type repoImpl struct {
 	path string
 }
@@ -65,25 +65,15 @@ func (r *repoImpl) Path() string {
 }
 
 func (r *repoImpl) BranchNames() ([]string, error) {
-	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)", "refs/heads/")
-	cmd.Dir = r.path
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err == nil {
-		branches := strings.Split(stdout.String(), "\n")
-		return branches[:len(branches)-1], nil
+	result, err := shellout.Run(
+		"git", "-C", r.path, "for-each-ref", "--format=%(refname:short)", "refs/heads/")
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute git command: %w", err)
 	}
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
-		exitCode := exitErr.ExitCode()
-		if exitCode == 128 {
-			errMsg := fmt.Sprintf("'%s' is not a git repository", r.path)
-			return nil, newTypedError(ErrNotAGitRepo, errMsg)
-		}
-		msg := strings.Split(stderr.String(), "\n")[0]
-		return nil, fmt.Errorf("git command returned exit code '%d': %s", exitCode, msg)
+	if result.ExitCode != 0 {
+		msg := strings.Split(result.Stderr.String(), "\n")[0]
+		return nil, fmt.Errorf("git command returned exit code '%d': %s", result.ExitCode, msg)
 	}
-	return nil, fmt.Errorf("failed to execute git command: %w", err)
+	branches := strings.Split(result.Stdout.String(), "\n")
+	return branches[:len(branches)-1], nil
 }
