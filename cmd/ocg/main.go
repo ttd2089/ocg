@@ -3,19 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
-
-	"github.com/ttd2089/ocg/pkg/gitrepos"
 )
 
 func main() {
-	repoIter := gitrepos.NewIter()
-	repos, err := repoIter.Iterate(".")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to enumerate git repositories: %v\n", err)
+	if len(os.Args) != 2 || os.Args[1] != "list" {
+		fmt.Fprintf(os.Stderr, "usage: ocg list\n")
 		os.Exit(1)
 	}
-	fmt.Printf("found %d git repositories:\n", len(repos))
-	for _, repo := range repos {
-		fmt.Printf("- %s\n", repo)
-	}
+	cmd := newListCmd()
+	os.Exit(cmd.run(os.Args[2:]))
 }
