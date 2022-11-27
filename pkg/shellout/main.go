@@ -17,7 +17,7 @@ type Result struct {
 // could not be completed.
 func Run(name string, arg ...string) (*Result, error) {
 	result := &Result{}
-	cmd := exec.Command("git", arg...)
+	cmd := exec.Command(name, arg...)
 	cmd.Stdout = &result.Stdout
 	cmd.Stderr = &result.Stderr
 	err := cmd.Run()
