@@ -33,10 +33,14 @@ func (l *listCmd) run(_ []string) int {
 	return 0
 }
 
-func (w *listCmd) printRepo(repo gitrepos.Repo, wd string) {
+func (l *listCmd) printRepo(repo gitrepos.Repo, wd string) {
 	repoPath, _ := filepath.Rel(wd, repo.Path())
 	fmt.Printf("- name: %s\n", repo.Name())
 	fmt.Printf("  path: %s\n", repoPath)
+	l.printBranches(repo)
+}
+
+func (_ *listCmd) printBranches(repo gitrepos.Repo) {
 	branches, err := repo.BranchNames()
 	if err != nil {
 		fmt.Printf("  branches: [] # error: %s\n", err)
